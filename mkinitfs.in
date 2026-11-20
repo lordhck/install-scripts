@@ -7,7 +7,10 @@ m4_include(common.m4)
 # ext4 needs crc32c, which is not in modules.dep.
 MODULES=(virtio_blk ext4 crc32c_generic)
 
-[[ $# -eq 3 ]] || die "usage: mkinitfs <rootfs> <kernel version> <output>"
+if [[ $# -ne 3 ]]; then
+    echo "usage: mkinitfs <rootfs> <kernel version> <output>" >&2
+    exit 1
+fi
 
 root="$1" kver="$2"
 moddir="$root/lib/modules/$kver"
