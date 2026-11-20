@@ -12,7 +12,7 @@ EOT
 EOT
 
     write_file "$ROOT/etc/passwd" <<'EOT'
-root:x:0:0:root:/root:/bin/sh
+root:x:0:0:root:/root:/bin/bash
 EOT
 
     write_file "$ROOT/etc/group" <<'EOT'
@@ -74,6 +74,7 @@ EOT
     write_file "$ROOT/etc/shells" <<'EOT'
 /bin/sh
 /bin/ash
+/bin/bash
 EOT
 
     write_file "$ROOT/etc/issue" <<'EOT'

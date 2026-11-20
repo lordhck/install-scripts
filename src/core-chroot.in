@@ -15,7 +15,7 @@ fi
 ROOT="$(cd "$1" && pwd -P)"
 
 [[ "$ROOT" != "/" ]] || die "invalid rootfs path"
-[[ -x "$ROOT/bin/sh" ]] || die "rootfs shell not found"
+[[ -x "$ROOT/bin/bash" ]] || die "rootfs bash not found"
 
 mounted=()
 
@@ -92,5 +92,5 @@ env -i HOME=/root TERM="${TERM:-linux}" "$CHROOT_BIN" "$ROOT" /bin/sh -c '
     . /etc/profile
     cd
     export PS1="(chroot) \u@$(cat /etc/hostname):\w# "
-    exec /bin/sh -i
+    exec /bin/bash -i
 '
