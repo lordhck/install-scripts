@@ -38,9 +38,10 @@ die() {
     [[ -n "$STEP" ]] || shift
     printf '%s[%sFAIL%s] %s\n' "$CR" "$RED" "$RESET" "$title" >&2
 
-    while IFS= read -r line; do
+    # A pipe, not <(...): that needs /dev/fd, which a bare chroot lacks.
+    printf '%s\n' "$@" | while IFS= read -r line; do
         [[ -n "$line" ]] && printf '\t%s-> %s%s\n' "$DIM" "$line" "$RESET" >&2
-    done < <(printf '%s\n' "$@")
+    done
 
     exit 1
 }

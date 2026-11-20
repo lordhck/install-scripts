@@ -45,7 +45,7 @@ extract_packages() {
 # which extract_packages skips. Recreate them as relative links.
 install_busybox_applets() {
     local -a applets=()
-    local applet dir target
+    local applet dir target out
 
     status "Installing busybox applets"
 
@@ -68,6 +68,11 @@ install_busybox_applets() {
 
         lns "$target" "$ROOT/$dir/$applet"
     done
+
+    # su, passwd and friends need root, so they go through the setuid
+    # bbsuid. Alpine does this in a trigger, which we skip.
+    out="$(chroot "$ROOT" /bin/bbsuid --install 2>&1)" \
+        || die "failed to install setuid applets" "$out"
 
     ok "${#applets[@]} applets"
 }
