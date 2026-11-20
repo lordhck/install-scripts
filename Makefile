@@ -1,15 +1,16 @@
 SHELL := /bin/bash
 
-TOOLS := mkinitfs core-chroot
+TOOLS := bin/corefs bin/mkinitfs bin/core-chroot
 
 .PHONY: build clean
 
 build: $(TOOLS) ## Build the standalone scripts
 
 # -P: only m4_* names are macros, so shell code like awk's index() is safe.
-%: %.in $(wildcard lib/*.m4 lib/*/*)
-	m4 -P -I lib $< > $@
+bin/%: src/%.in $(shell find src -type f)
+	@mkdir -p bin
+	m4 -P -I src $< > $@
 	chmod 755 $@
 
 clean: ## Remove the built scripts
-	rm -f $(TOOLS)
+	rm -rf bin

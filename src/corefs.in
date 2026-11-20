@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+m4_include(lib/common.m4)
+m4_include(lib/corefs/filesystem.m4)
+m4_include(lib/corefs/symlinks.m4)
+m4_include(lib/corefs/packages.m4)
+m4_include(lib/corefs/kernel.m4)
+m4_include(lib/corefs/config.m4)
+m4_include(lib/corefs/verify.m4)
+
+if [[ $# -ne 3 || "$1" != install ]]; then
+    echo "usage: corefs install <profile> <root>" >&2
+    exit 1
+fi
+
+# Profiles are package lists, embedded at build time.
+case "$2" in
+    base)
+        profile="$(cat <<'EOT'
+m4_include(profiles/base)
+EOT
+)" ;;
+    *) die "unknown profile '$2'" ;;
+esac
+
+mapfile -t PACKAGES < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' <<< "$profile")
+
+ROOT="$3"
+[[ -n "$ROOT" && "$ROOT" != "/" ]] || die "invalid rootfs path"
+
+mkdir -p "$ROOT" || die "failed to create rootfs"
+ROOT="$(cd "$ROOT" && pwd -P)"
+[[ "$ROOT" != "/" ]] || die "invalid rootfs path"
+
+# An open chroot leaves host dirs mounted here; rm would hit the host.
+for dir in dev proc sys run; do
+    mountpoint -q "$ROOT/$dir" && die "/$dir is mounted, exit the chroot first"
+done
+
+# Only ever wipe an old Core rootfs, never a directory given by mistake.
+if [[ -n "$(ls -A "$ROOT")" ]] && ! grep -qx 'ID=core' "$ROOT/etc/os-release" 2>/dev/null; then
+    die "$ROOT is not empty and not a Core rootfs, refusing to delete it"
+fi
+rm -rf "$ROOT" || die "failed to clean rootfs"
+mkdir -p "$ROOT" || die "failed to create rootfs"
+
+CACHE="$(mktemp -d)"
+trap 'rm -rf "$CACHE"' EXIT
+
+msg "Building Core rootfs in $ROOT"
+
+build_filesystem
+build_symlinks
+build_packages
+build_kernel
+build_config
+verify_elf
+
+msg "Core rootfs built in ${SECONDS}s"

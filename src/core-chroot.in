@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-m4_include(common.m4)
+m4_include(lib/common.m4)
 
 if [[ $# -ne 1 ]]; then
     echo "usage: core-chroot <root>" >&2

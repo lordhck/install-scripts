@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-m4_include(common.m4)
+m4_include(lib/common.m4)
 
 # ext4 needs crc32c, which is not in modules.dep.
 MODULES=(virtio_blk ext4 crc32c_generic)
@@ -31,7 +31,7 @@ install -m 755 "$root/usr/bin/busybox.static" "$tmp/bin/busybox"
 printf '%s\n' "${MODULES[@]}" > "$tmp/etc/modules"
 
 write_file "$tmp/init" 755 <<'EOT'
-m4_include(mkinitfs/init)
+m4_include(lib/mkinitfs/init)
 EOT
 
 for module in "${MODULES[@]}"; do
