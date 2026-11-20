@@ -39,9 +39,11 @@ tmpfs    /run      tmpfs    defaults               0 0
 EOT
 
     # /dev/pts and /dev/shm only exist once devtmpfs is mounted.
+    # devtmpfs has no /dev/fd, which bash needs for <(...).
     write_file "$ROOT/etc/inittab" <<'EOT'
 ::sysinit:/bin/mount /dev
 ::sysinit:/bin/mkdir -p /dev/pts /dev/shm
+::sysinit:/bin/ln -s /proc/self/fd /dev/fd
 ::sysinit:/bin/mount -a
 ::sysinit:/bin/hostname -F /etc/hostname
 ::sysinit:/sbin/syslogd
