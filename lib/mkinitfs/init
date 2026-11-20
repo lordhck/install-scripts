@@ -1,0 +1,16 @@
+#!/bin/busybox sh
+
+# --install finds busybox through /proc/self/exe.
+/bin/busybox mount -t proc proc /proc
+/bin/busybox --install -s /bin
+
+mount -t devtmpfs devtmpfs /dev
+xargs modprobe -a < /etc/modules
+
+if mount -t ext4 /dev/vda /mnt; then
+    umount /proc /dev
+    exec switch_root /mnt /sbin/init
+fi
+
+echo "init: no root disk, starting a shell"
+exec sh
