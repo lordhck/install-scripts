@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+m4_include(common.m4)
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: core-chroot <root>" >&2
+    exit 1
+fi
+
+[[ $EUID -eq 0 ]] || die "must be run as root"
+[[ -d "$1" ]] || die "rootfs directory not found"
+
+ROOT="$(cd "$1" && pwd -P)"
+
+[[ "$ROOT" != "/" ]] || die "invalid rootfs path"
+[[ -x "$ROOT/bin/sh" ]] || die "rootfs shell not found"
+
+mounted=()
+
+add_mount() {
+    mounted=("$1" "${mounted[@]}")
+}
+
+cleanup() {
+    local target
+
+    for target in "${mounted[@]}"; do
+        if mountpoint -q "$target"; then
+            if [[ -d "$target" ]]; then
+                umount -R "$target" || warn "failed to unmount '$target'"
+            else
+                umount "$target" || warn "failed to unmount '$target'"
+            fi
+        fi
+    done
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+for dir in dev proc sys run; do
+    [[ -d "$ROOT/$dir" ]] || die "missing mountpoint: /$dir"
+    mountpoint -q "$ROOT/$dir" && die "/$dir is already mounted"
+done
+
+[[ -d "$ROOT/etc" ]] || die "missing /etc"
+
+if [[ -L "$ROOT/etc/resolv.conf" ]]; then
+    die "/etc/resolv.conf must not be a symlink"
+fi
+
+if [[ ! -e "$ROOT/etc/resolv.conf" ]]; then
+    install -m 644 /dev/null "$ROOT/etc/resolv.conf"
+fi
+
+[[ -f "$ROOT/etc/resolv.conf" ]] || die "invalid /etc/resolv.conf"
+
+RESOLV_SOURCE="$(readlink -f /etc/resolv.conf)"
+[[ -f "$RESOLV_SOURCE" ]] || die "host resolv.conf not found"
+
+msg "Mounting system directories"
+
+mount --rbind /dev "$ROOT/dev"
+add_mount "$ROOT/dev"
+mount --make-rslave "$ROOT/dev"
+
+mount -t proc proc "$ROOT/proc"
+add_mount "$ROOT/proc"
+
+mount --rbind /sys "$ROOT/sys"
+add_mount "$ROOT/sys"
+mount --make-rslave "$ROOT/sys"
+
+mount --rbind /run "$ROOT/run"
+add_mount "$ROOT/run"
+mount --make-rslave "$ROOT/run"
+
+mount --bind "$RESOLV_SOURCE" "$ROOT/etc/resolv.conf"
+add_mount "$ROOT/etc/resolv.conf"
+
+msg "Entering Core chroot"
+
+CHROOT_BIN="$(command -v chroot)" || die "chroot command not found"
+
+# Not a login shell: it would re-read /etc/profile and drop the
+# (chroot) marker that shows you are not on the host. The hostname
+# comes from the rootfs, since \h would show the host's name.
+env -i HOME=/root TERM="${TERM:-linux}" "$CHROOT_BIN" "$ROOT" /bin/sh -c '
+    . /etc/profile
+    cd
+    export PS1="(chroot) \u@$(cat /etc/hostname):\w# "
+    exec /bin/sh -i
+'

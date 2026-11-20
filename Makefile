@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-TOOLS := mkinitfs
+TOOLS := mkinitfs core-chroot
 
 .PHONY: build clean
 
