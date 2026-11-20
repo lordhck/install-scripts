@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+m4_include(lib/common.m4)
+
+tag=''
+case "${1:-}" in
+    -U) tag=UUID; shift ;;
+    -L) tag=LABEL; shift ;;
+esac
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: genfstab [-U|-L] <root>" >&2
+    exit 1
+fi
+
+[[ -d "$1" ]] || die "root directory not found"
+root="$(cd "$1" && pwd -P)"
+[[ "$root" == / ]] && root=''
+
+# fstab and /proc/mounts both write spaces as \040.
+root="${root// /\\040}"
+
+# BusyBox blkid has no -s/-o, so parse its KEY="value" output.
+source_of() {
+    local dev="$1" value=''
+
+    [[ -n "$tag" ]] && value="$(blkid "$dev" | sed -n "s/.* $tag=\"\([^\"]*\)\".*/\1/p")"
+    if [[ -n "$value" ]]; then
+        echo "$tag=${value// /\\040}"
+    else
+        echo "$dev"
+    fi
+}
+
+while read -r dev target fstype opts _; do
+    [[ "$dev" == /dev/* ]] || continue
+    [[ "$target" == "${root:-/}" || "$target" == "$root"/* ]] || continue
+
+    dir="${target#"$root"}"
+    pass=2
+    [[ -z "$dir" || "$dir" == / ]] && dir=/ pass=1
+
+    printf '%s\t%s\t%s\t%s\t0 %s\n' "$(source_of "$dev")" "$dir" "$fstype" "$opts" "$pass"
+done < /proc/mounts
+
+while read -r dev type _; do
+    if [[ "$type" == file ]]; then
+        [[ "$dev" == "$root"/* ]] || continue
+        dev="${dev#"$root"}"
+    else
+        dev="$(source_of "$dev")"
+    fi
+
+    printf '%s\tnone\tswap\tdefaults\t0 0\n' "$dev"
+done < <(tail -n +2 /proc/swaps)

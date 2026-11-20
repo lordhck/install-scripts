@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-TOOLS := bin/corefs bin/mkinitfs bin/core-chroot
+TOOLS := bin/corefs bin/mkinitfs bin/core-chroot bin/genfstab
 
 .PHONY: build clean
 
