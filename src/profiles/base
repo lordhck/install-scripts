@@ -3,3 +3,4 @@ busybox-static
 bash
 busybox-suid
 tzdata
+kbd-bkeymaps
