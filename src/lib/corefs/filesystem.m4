@@ -3,7 +3,7 @@ build_filesystem() {
 
     status "Creating filesystem"
 
-    # Written first: build.sh only wipes a rootfs that has it, so even
+    # Written first: corefs only wipes a rootfs that has it, so even
     # a failed build can be cleaned by the next one.
     write_file "$ROOT/etc/os-release" <<'EOT'
 NAME="Core Linux"
