@@ -2,3 +2,4 @@ busybox
 busybox-static
 bash
 busybox-suid
+tzdata
