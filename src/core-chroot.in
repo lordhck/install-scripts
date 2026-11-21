@@ -23,21 +23,23 @@ add_mount() {
     mounted=("$1" "${mounted[@]}")
 }
 
+# BusyBox umount has no -R, so unmount everything at or below each
+# target ourselves, deepest first. /proc/mounts writes spaces as \040;
+# the path goes through ENVIRON because awk -v would decode it.
 cleanup() {
-    local target
+    local target mnt
 
     for target in "${mounted[@]}"; do
-        if mountpoint -q "$target"; then
-            if [[ -d "$target" ]]; then
-                umount -R "$target" || warn "failed to unmount '$target'"
-            else
-                umount "$target" || warn "failed to unmount '$target'"
-            fi
-        fi
+        T="${target// /\\040}" awk '
+            $2 == ENVIRON["T"] || index($2, ENVIRON["T"] "/") == 1 { print $2 }
+        ' /proc/mounts | sort -r | while read -r mnt; do
+                umount "$(printf '%b' "$mnt")" || warn "failed to unmount '$mnt'"
+            done
     done
 }
 
 trap cleanup EXIT
+trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -70,9 +72,10 @@ mount --make-rslave "$ROOT/dev"
 mount -t proc proc "$ROOT/proc"
 add_mount "$ROOT/proc"
 
-mount --rbind /sys "$ROOT/sys"
+# A fresh sysfs, not --rbind: the host's cgroup and efivars sub-mounts
+# often refuse to unmount.
+mount -t sysfs sysfs "$ROOT/sys"
 add_mount "$ROOT/sys"
-mount --make-rslave "$ROOT/sys"
 
 mount --rbind /run "$ROOT/run"
 add_mount "$ROOT/run"
